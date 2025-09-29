@@ -1,9 +1,10 @@
 "use client";
 import Image from "next/image";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState, useMemo } from "react";
 import GameRulesPopup from "./GameRulesPopup";
 import SettingsPopup from "./SettingsPopup";
 import { COIN_VALUES, LINES } from "./slot/constants";
+
 export default function BetControls({
   credit = 100000,
   onSpin,
@@ -12,12 +13,15 @@ export default function BetControls({
   setTotalBet,
   canSpin = true,
   roundWin = 0,
+  // NEW: optional breakdown so center subline can show details
+  lastWinItems = [],
 }) {
   const [isSpinning, setIsSpinning] = useState(false);
 
   // единственный контроллер модалок
   // modal: null | "settings" | "rules" | "bet"
   const [modal, setModal] = useState(null);
+  const isPopupOpen = modal === "bet" || modal === "settings";
   const [betAnchored, setBetAnchored] = useState(false); // где рисовать bet popup
 
   // для SettingsPopup (его внутренние контролы)
@@ -40,18 +44,20 @@ export default function BetControls({
   }, [totalBet, setTotalBet]);
 
   // линейка TOTAL BET для +/- по общему знач.
-  const allCombos = [];
-  for (let c = 0; c < COIN_VALUES.length; c++) {
-    for (let b = 1; b <= 10; b++) {
-      allCombos.push({
-        bet: b,
-        coinIndex: c,
-        totalBet: b * COIN_VALUES[c] * LINES,
-      });
+  const allCombos = useMemo(() => {
+    const arr = [];
+    for (let c = 0; c < COIN_VALUES.length; c++) {
+      for (let b = 1; b <= 10; b++) {
+        arr.push({
+          bet: b,
+          coinIndex: c,
+          totalBet: b * COIN_VALUES[c] * LINES,
+        });
+      }
     }
-  }
-  const sortedCombos = allCombos.sort((a, b) => a.totalBet - b.totalBet);
-  const currentIndex = sortedCombos.findIndex(
+    return arr.sort((a, b) => a.totalBet - b.totalBet);
+  }, []);
+  const currentIndex = allCombos.findIndex(
     (c) => c.bet === bet && c.coinIndex === coinIndex
   );
 
@@ -63,15 +69,23 @@ export default function BetControls({
     }
   }, [canSpin]);
 
+  // --- SPIN handling (with spin sequence tracker) ---
+  const spinSeqRef = useRef(0);
   const handleSpin = useCallback(
     async (options = {}) => {
+      if (modal) return; // block spin when bet/settings is open
       if (!canSpin || isSpinning) return;
       if (credit < totalBet) return;
       setIsSpinning(true);
+      spinSeqRef.current += 1;
       const started = await Promise.resolve(onSpin?.(totalBet, options));
-      if (started === false) setIsSpinning(false);
+      if (started === false) {
+        setIsSpinning(false);
+        spinSeqRef.current -= 1;
+      }
+      if (started) setModal(null);
     },
-    [canSpin, isSpinning, credit, totalBet, onSpin]
+    [modal, canSpin, isSpinning, credit, totalBet, onSpin]
   );
 
   // хоткеи
@@ -83,6 +97,7 @@ export default function BetControls({
     };
 
     const handleKeyDown = (event) => {
+      if (modal) return; // block hotkeys when any modal is open
       if (event.code !== "Space" && event.code !== "Enter") return;
       if (shouldIgnoreTarget(event.target)) return;
       event.preventDefault();
@@ -117,6 +132,80 @@ export default function BetControls({
     setBet(10);
     setCoinIndex(COIN_VALUES.length - 1);
   };
+
+  // ===== Center banner logic (NEW) =====
+  const START_TEXT = "HOLD SPACE FOR TURBO SPIN";
+  const IDLE_VARIANTS = useMemo(
+    () => ["PLACE YOUR BET!", "SPIN TO WIN!", "HOLD SPACE FOR TURBO SPIN"],
+    []
+  );
+  const [banner, setBanner] = useState(START_TEXT);
+  const [subline, setSubline] = useState("");
+  const [animatedWin, setAnimatedWin] = useState(0);
+  const rafRef = useRef(0);
+  const animValRef = useRef(0);
+  const lastSeenSpin = useRef(0);
+
+  // While spinning: show GOOD LUCK!
+  useEffect(() => {
+    if (isSpinning) {
+      setBanner("GOOD LUCK!");
+      setSubline("");
+      setAnimatedWin(0);
+      animValRef.current = 0;
+      cancelAnimationFrame(rafRef.current);
+    }
+  }, [isSpinning]);
+
+  // After a spin finishes (canSpin true & a new spin was started)
+  // While spinning: still show GOOD LUCK! (kept as-is above)
+
+  // After spin / while idle: react to roundWin changes
+  useEffect(() => {
+    if (!canSpin || isSpinning) return;
+
+    // Win banner with animated amount
+    if (roundWin > 0) {
+      const target = Number(roundWin) || 0;
+      const duration = Math.min(
+        2500,
+        Math.max(700, Math.log10(1 + target) * 1200)
+      );
+      setBanner("WIN");
+
+      if (lastWinItems?.length === 1) {
+        const it = lastWinItems[0];
+        setSubline(`PAYS $${(it.amount ?? 0).toFixed(2)}`);
+      } else if ((lastWinItems?.length || 0) > 1) {
+        setSubline("WINNER");
+      } else {
+        setSubline("");
+      }
+
+      const from = animValRef.current || 0; // start from what’s currently shown
+      const to = target;
+      const t0 = performance.now();
+      cancelAnimationFrame(rafRef.current);
+      const tick = (t) => {
+        const p = Math.min(1, (t - t0) / duration);
+        const eased = p < 0.5 ? 2 * p * p : -1 + (4 - 2 * p) * p;
+        const val = from + (to - from) * eased;
+        animValRef.current = val;
+        setAnimatedWin(val);
+        if (p < 1) rafRef.current = requestAnimationFrame(tick);
+      };
+      rafRef.current = requestAnimationFrame(tick);
+    } else {
+      // No win → show one of the idle lines
+      const pick = [
+        "PLACE YOUR BET!",
+        "SPIN TO WIN!",
+        "HOLD SPACE FOR TURBO SPIN",
+      ][Math.floor(Math.random() * 3)];
+      setBanner(pick);
+      setSubline("");
+    }
+  }, [canSpin, isSpinning, roundWin, lastWinItems]);
 
   // единый BET popup (якорный или фуллскрин)
   const BetPopup = ({ anchored = false }) => (
@@ -227,8 +316,8 @@ export default function BetControls({
               disabled={currentIndex <= 0}
               onClick={() => {
                 if (currentIndex > 0) {
-                  setBet(sortedCombos[currentIndex - 1].bet);
-                  setCoinIndex(sortedCombos[currentIndex - 1].coinIndex);
+                  setBet(allCombos[currentIndex - 1].bet);
+                  setCoinIndex(allCombos[currentIndex - 1].coinIndex);
                 }
               }}
               className="relative disabled:opacity-40"
@@ -245,11 +334,11 @@ export default function BetControls({
               ${totalBet.toFixed(2)}
             </div>
             <button
-              disabled={currentIndex >= sortedCombos.length - 1}
+              disabled={currentIndex >= allCombos.length - 1}
               onClick={() => {
-                if (currentIndex < sortedCombos.length - 1) {
-                  setBet(sortedCombos[currentIndex + 1].bet);
-                  setCoinIndex(sortedCombos[currentIndex + 1].coinIndex);
+                if (currentIndex < allCombos.length - 1) {
+                  setBet(allCombos[currentIndex + 1].bet);
+                  setCoinIndex(allCombos[currentIndex + 1].coinIndex);
                 }
               }}
               className="relative disabled:opacity-40"
@@ -279,7 +368,7 @@ export default function BetControls({
   const ICON_WH = "clamp(24px, 4.5vw, 36px)";
   const BIG_BTN_WH = "clamp(96px, 18vw, 160px)";
   const NUM_FONT = "clamp(16px, 3.5vw, 22px)";
-  const TIP_FONT = "clamp(12px, 3.6vw, 20px)";
+  const TIP_FONT = "clamp(14px, 4.6vw, 24px)";
 
   return (
     <div className="w-full pointer-events-auto relative">
@@ -288,28 +377,45 @@ export default function BetControls({
         style={{ width: `min(${vwWidth}vw, ${maxWidth}px)` }}
       >
         {/* ===== Desktop ===== */}
-        <div className="hidden md:grid grid-cols-[auto_1fr_auto] items-center gap-x-8 lg:gap-x-16 xl:gap-x-24">
-          {/* Left buttons */}
-          <div className="flex flex-col items-start gap-3">
-            <button
-              className="relative"
-              style={{ width: ICON_WH, height: ICON_WH }}
-              onClick={() => setModal("settings")}
-              aria-label="Open settings"
-            >
-              <Image
-                src="/ui/settings.png"
-                alt="menu"
-                fill
-                className="object-contain"
-              />
-            </button>
+        <div className="hidden md:grid grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-x-8 lg:gap-x-16 xl:gap-x-24">
+          {/* LEFT: settings over mute, info to the right, then CREDIT over BET */}
+          <div className="flex items-start gap-4 mt-15">
+            {/* settings / mute vertical */}
+            <div className="flex flex-col items-start gap-2">
+              <button
+                className="relative"
+                style={{ width: ICON_WH, height: ICON_WH }}
+                onClick={() => setModal("settings")}
+                aria-label="Open settings"
+              >
+                <Image
+                  src="/ui/settings.png"
+                  alt="menu"
+                  fill
+                  className="object-contain"
+                />
+              </button>
 
+              <button
+                className="relative"
+                style={{ width: ICON_WH, height: ICON_WH }}
+                aria-label="Toggle sound"
+              >
+                <Image
+                  src="/ui/sound.png"
+                  alt="sound"
+                  fill
+                  className="object-contain"
+                />
+              </button>
+            </div>
+
+            {/* info to their right */}
             <button
-              className="relative"
+              className="relative mt-4"
               style={{
-                width: `calc(${ICON_WH} * 1.4)`,
-                height: `calc(${ICON_WH} * 1.4)`,
+                width: `calc(${ICON_WH} * 1.2)`,
+                height: `calc(${ICON_WH} * 1.2)`,
               }}
               onClick={() => setModal("rules")}
               aria-label="Open rules"
@@ -322,30 +428,9 @@ export default function BetControls({
               />
             </button>
 
-            <button
-              className="relative"
-              style={{ width: ICON_WH, height: ICON_WH }}
-              aria-label="Toggle sound"
-            >
-              <Image
-                src="/ui/sound.png"
-                alt="sound"
-                fill
-                className="object-contain"
-              />
-            </button>
-          </div>
-
-          {/* Center info */}
-          <div className="flex flex-col items-center md:items-start gap-2">
-            <p
-              className="text-white font-extrabold uppercase text-center leading-none"
-              style={{ fontSize: TIP_FONT }}
-            >
-              HOLD SPACE FOR TURBO SPINS
-            </p>
-            <div className="flex items-center gap-8 lg:gap-12 flex-wrap justify-center md:justify-start">
-              <div className="font-bold text-white">
+            {/* credit over bet */}
+            <div className="flex flex-col gap-1 ml-2 mt-4">
+              <div className="font-bold text-white leading-none">
                 CREDIT
                 <span
                   className="text-yellow-400 pl-2"
@@ -357,7 +442,7 @@ export default function BetControls({
                   })}
                 </span>
               </div>
-              <div className="font-bold text-white">
+              <div className="font-bold text-white leading-none">
                 BET
                 <span
                   className="text-orange-400 pl-2"
@@ -369,28 +454,60 @@ export default function BetControls({
                   })}
                 </span>
               </div>
-              <div className="font-bold text-white">
-                WIN
-                <span
-                  className="text-green-400 pl-2 animate-popupPulse"
-                  style={{ fontSize: NUM_FONT }}
-                >
-                  $
-                  {roundWin.toLocaleString(undefined, {
-                    minimumFractionDigits: 2,
-                  })}
-                </span>
-              </div>
             </div>
           </div>
+          {/* CENTER: banner + conditional subline */}
+          <div className="flex flex-col items-center justify-center min-h-[48px] mt-14">
+            <p
+              className="text-white font-extrabold uppercase text-center leading-none whitespace-nowrap"
+              style={{ fontSize: TIP_FONT }}
+            >
+              {banner === "WIN" ? (
+                <>
+                  WIN
+                  <span className="text-green-400">
+                    $
+                    {animatedWin.toLocaleString(undefined, {
+                      minimumFractionDigits: 2,
+                    })}
+                  </span>
+                </>
+              ) : (
+                banner
+              )}
+            </p>
 
-          {/* Right controls */}
+            {!!subline && (
+              <div className="mt-1 text-white/90 text-xs md:text-sm font-semibold flex items-center gap-2">
+                {lastWinItems?.length === 1 && (
+                  <>
+                    <span>{lastWinItems[0].count}x</span>
+                    <span
+                      className="relative inline-block"
+                      style={{ width: 28, height: 28 }}
+                    >
+                      <Image
+                        src={`/symbols/${lastWinItems[0].img}`}
+                        alt={lastWinItems[0].img}
+                        fill
+                        className="object-contain"
+                        unoptimized
+                      />
+                    </span>
+                  </>
+                )}
+                <span>{subline}</span>
+              </div>
+            )}
+          </div>
+          {/* RIGHT: -  SPIN  + */}
           <div className="flex items-center gap-3 sm:gap-5 justify-end">
             <button
               onClick={() => {
                 setBetAnchored(true);
                 setModal("bet");
               }}
+              disabled={!canSpin || isSpinning || isPopupOpen}
               className="relative"
               style={{ width: ICON_WH, height: ICON_WH }}
               aria-label="Decrease bet / open popup"
@@ -406,7 +523,9 @@ export default function BetControls({
             <div className="relative flex items-center justify-center">
               <button
                 onClick={() => void handleSpin()}
-                disabled={!canSpin || isSpinning || credit < totalBet}
+                disabled={
+                  !canSpin || isSpinning || credit < totalBet || isPopupOpen
+                }
                 className="relative flex items-center justify-center overflow-hidden disabled:opacity-60 disabled:cursor-not-allowed focus:outline-none"
                 style={{ width: BIG_BTN_WH, height: BIG_BTN_WH }}
                 aria-label="Spin"
@@ -434,6 +553,7 @@ export default function BetControls({
                 setBetAnchored(true);
                 setModal("bet");
               }}
+              disabled={!canSpin || isSpinning || isPopupOpen}
               className="relative"
               style={{ width: ICON_WH, height: ICON_WH }}
               aria-label="Increase bet / open popup"
@@ -452,19 +572,34 @@ export default function BetControls({
         <div className="md:hidden flex flex-col gap-3">
           <div className="flex items-center justify-between px-1">
             <div className="flex items-center gap-3">
-              <button
-                className="relative"
-                style={{ width: ICON_WH, height: ICON_WH }}
-                onClick={() => setModal("settings")}
-                aria-label="Open settings"
-              >
-                <Image
-                  src="/ui/settings.png"
-                  alt="menu"
-                  fill
-                  className="object-contain"
-                />
-              </button>
+              <div className="flex flex-col gap-1">
+                <button
+                  className="relative"
+                  style={{ width: ICON_WH, height: ICON_WH }}
+                  onClick={() => setModal("settings")}
+                  aria-label="Open settings"
+                >
+                  <Image
+                    src="/ui/settings.png"
+                    alt="menu"
+                    fill
+                    className="object-contain"
+                  />
+                </button>
+                <button
+                  className="relative"
+                  style={{ width: ICON_WH, height: ICON_WH }}
+                  aria-label="Toggle sound"
+                >
+                  <Image
+                    src="/ui/sound.png"
+                    alt="sound"
+                    fill
+                    className="object-contain"
+                  />
+                </button>
+              </div>
+
               <button
                 className="relative"
                 style={{
@@ -481,29 +616,54 @@ export default function BetControls({
                   className="object-contain"
                 />
               </button>
-              <button
-                className="relative"
-                style={{ width: ICON_WH, height: ICON_WH }}
-                aria-label="Toggle sound"
-              >
-                <Image
-                  src="/ui/sound.png"
-                  alt="sound"
-                  fill
-                  className="object-contain"
-                />
-              </button>
             </div>
 
+            {/* mobile center banner */}
             <p
-              className="text-white font-extrabold uppercase leading-none"
+              className="text-white font-extrabold uppercase leading-none text-center whitespace-nowrap"
               style={{ fontSize: TIP_FONT }}
             >
-              HOLD SPACE FOR TURBO
+              {banner === "WIN" ? (
+                <>
+                  WIN
+                  <span className="text-green-400">
+                    $
+                    {animatedWin.toLocaleString(undefined, {
+                      minimumFractionDigits: 2,
+                    })}
+                  </span>
+                </>
+              ) : (
+                banner
+              )}
             </p>
           </div>
 
-          <div className="flex items-center justify-center gap-1">
+          {!!subline && (
+            <div className="mx-auto -mt-1 text-white/90 text-[11px] font-semibold flex items-center gap-2">
+              {lastWinItems?.length === 1 && (
+                <>
+                  <span>{lastWinItems[0].count}x</span>
+                  <span
+                    className="relative inline-block"
+                    style={{ width: 22, height: 22 }}
+                  >
+                    <Image
+                      src={`/symbols/${lastWinItems[0].img}`}
+                      alt={lastWinItems[0].img}
+                      fill
+                      className="object-contain"
+                      unoptimized
+                    />
+                  </span>
+                </>
+              )}
+              <span>{subline}</span>
+            </div>
+          )}
+
+          {/* credit/bet line under banner on mobile */}
+          <div className="flex items-center justify-center gap-3">
             <div className="font-bold text-white">
               CREDIT
               <span
@@ -526,18 +686,6 @@ export default function BetControls({
                 })}
               </span>
             </div>
-            <div className="font-bold text-white">
-              WIN
-              <span
-                className=" text-green-400 pl-1.5 animate-popupPulse"
-                style={{ fontSize: NUM_FONT }}
-              >
-                $
-                {roundWin.toLocaleString(undefined, {
-                  minimumFractionDigits: 2,
-                })}
-              </span>
-            </div>
           </div>
 
           <div className="flex items-center justify-center gap-5 mt-1">
@@ -546,6 +694,7 @@ export default function BetControls({
                 setBetAnchored(false);
                 setModal("bet");
               }}
+              disabled={!canSpin || isSpinning || isPopupOpen}
               className="relative"
               style={{ width: ICON_WH, height: ICON_WH }}
               aria-label="Decrease bet / open popup"
@@ -560,7 +709,9 @@ export default function BetControls({
 
             <button
               onClick={() => void handleSpin()}
-              disabled={!canSpin || isSpinning || credit < totalBet}
+              disabled={
+                !canSpin || isSpinning || credit < totalBet || isPopupOpen
+              }
               className="relative flex items-center justify-center overflow-hidden disabled:opacity-60 disabled:cursor-not-allowed focus:outline-none"
               style={{ width: BIG_BTN_WH, height: BIG_BTN_WH }}
               aria-label="Spin"
@@ -584,6 +735,7 @@ export default function BetControls({
                 setBetAnchored(false);
                 setModal("bet");
               }}
+              disabled={!canSpin || isSpinning || isPopupOpen}
               className="relative"
               style={{ width: ICON_WH, height: ICON_WH }}
               aria-label="Increase bet / open popup"
@@ -606,8 +758,19 @@ export default function BetControls({
           <SettingsPopup
             key="settings-modal"
             onClose={() => setModal(null)}
-            totalBet={totalBetSettings}
-            setTotalBet={setTotalBetSettings}
+            // FIX: always send a number to avoid toFixed crash
+            totalBet={totalBet} // show the real current total bet
+            onTotalBetStep={(dir) => {
+              // step through allCombos
+              const idx = currentIndex;
+              if (dir < 0 && idx > 0) {
+                setBet(allCombos[idx - 1].bet);
+                setCoinIndex(allCombos[idx - 1].coinIndex);
+              } else if (dir > 0 && idx < allCombos.length - 1) {
+                setBet(allCombos[idx + 1].bet);
+                setCoinIndex(allCombos[idx + 1].coinIndex);
+              }
+            }}
           />
         )}
         {modal === "rules" && (

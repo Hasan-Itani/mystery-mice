@@ -1,16 +1,22 @@
 "use client";
 import { useState } from "react";
 
-export default function SettingsPopup({ onClose, totalBet, setTotalBet }) {
+export default function SettingsPopup({ onClose, totalBet, setTotalBet, onTotalBetStep  }) {
   const [quickSpin, setQuickSpin] = useState(false);
   const [batterySaver, setBatterySaver] = useState(false);
   const [ambientMusic, setAmbientMusic] = useState(false);
   const [soundFx, setSoundFx] = useState(false);
   const [introScreen, setIntroScreen] = useState(true);
 
-  const handleBetChange = (delta) => {
-    setTotalBet((prev) => Math.max(0.2, prev + delta));
-  };
+ const handleBetChange = (delta) => {
+   // Fallback for older callers; not used when onTotalBetStep is provided
+   if (typeof onTotalBetStep === "function") {
+     onTotalBetStep(delta > 0 ? +1 : -1);
+   } else if (typeof setTotalBet === "function") {
+     setTotalBet((prev) => Math.max(0.2, prev + delta));
+   }
+ };
+
 
   const Toggle = ({ label, desc, checked, onChange }) => (
     <div className="flex items-center justify-between">
@@ -51,7 +57,7 @@ export default function SettingsPopup({ onClose, totalBet, setTotalBet }) {
               <p className="font-bold mb-3">TOTAL BET</p>
               <div className="flex items-center justify-center gap-4">
                 <button
-                  onClick={() => handleBetChange(-0.2)}
+                  onClick={() => handleBetChange(-1)}
                   className="w-10 h-10 bg-white text-black rounded-full font-bold text-xl"
                 >
                   –
@@ -60,7 +66,7 @@ export default function SettingsPopup({ onClose, totalBet, setTotalBet }) {
                   ${totalBet.toFixed(2)}
                 </div>
                 <button
-                  onClick={() => handleBetChange(0.2)}
+                  onClick={() => handleBetChange(+2)}
                   className="w-10 h-10 bg-green-500 text-white rounded-full font-bold text-xl"
                 >
                   +
