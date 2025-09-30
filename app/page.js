@@ -26,15 +26,14 @@ export default function Home() {
       if (!started) return false;
 
       setBoardState("spinning");
-      setRoundWin(0); // reset the round accumulator
-      setLastWinItems([]); // clear last step details
+      setRoundWin(0);
+      setLastWinItems([]);
       setCredit((c) => c - spinBet);
       return true;
     },
     [boardState, credit, totalBet]
   );
 
-  // receive per-step win (with breakdown)
   const handleWin = useCallback((result) => {
     const amt =
       typeof result === "number" ? result : Number(result?.total || 0);
@@ -53,11 +52,70 @@ export default function Home() {
 
   return (
     <main className="relative h-dvh w-dvw overflow-hidden bg-[#0b0f1a]">
-      {/* Backgrounds */}
       <div
         className="absolute inset-0 bg-cover bg-center"
         style={{ backgroundImage: "url('/ui/city.png')" }}
       />
+      <div className="absolute inset-0 z-5 pointer-events-none">
+        <img
+          src="/ui/bluefade.png"
+          alt="blue fade left"
+          className="absolute bottom-30 right-80 h-full 
+                    w-[25%] sm:w-[20%] md:w-[15%] lg:w-[12%] 
+                    z-0 animate-pulse-bright"
+        />
+        <img
+          src="/ui/bluefade_2.png"
+          alt="blue fade right"
+          className="absolute bottom-30 left-80 h-full 
+                    w-[25%] sm:w-[20%] md:w-[15%] lg:w-[12%] 
+                    z-0 animate-pulse-bright"
+        />
+        <img
+          src="/ui/buildings.png"
+          alt="buildings"
+          className="absolute inset-0 bg-cover bg-center h-[90%]
+                     sm:w-[110%] md:w-[100%] lg:w-full"
+        />
+
+        <img
+            src="/ui/orange_fade_left.png"
+            alt="orange fade left"
+            className="absolute bottom-0 left-[5%] weak-fade
+                      w-[250%] sm:w-[40%] md:w-[35%] lg:w-[50%] h-[25%]"
+          />
+        <img
+          src="/ui/orange_fade_right_1.png"
+          alt="orange fade right 1"
+          className="absolute bottom-0 right-[10%] weak-fade
+                     w-[250%] sm:w-[40%] md:w-[35%] lg:w-[50%] h-[25%]"
+        />
+        <img
+          src="/ui/orange_fade_right_2.png"
+          alt="orange fade right 2"
+          className="absolute bottom-0 right-[-10%] weak-fade
+                     w-[250%] sm:w-[40%] md:w-[35%] lg:w-[50%] h-[20%]"
+        />
+        <img
+          src="/ui/orange_fade_up.png"
+          alt="orange fade up"
+          className="absolute bottom-100 right-20 weak-fade
+                     w-[250%] sm:w-[40%] md:w-[35%] lg:w-[50%] h-[20%]"
+        />
+        <img
+          src="/ui/orange_fade_up_2.png"
+          alt="orange fade up 2"
+          className="absolute bottom-[20%] left-80 weak-fade
+                     w-[26%] sm:w-[20%] md:w-[18%] lg:w-[20%] h-[30%]"
+        />
+        <img
+          src="/ui/orange_fade_up_big.png"
+          alt="orange fade up big"
+          className="absolute bottom-[40%] left-1/2 -translate-x-1/2 weak-fade
+                     w-[40%] sm:w-[30%] md:w-[25%]"
+        />
+      </div>
+
       <div className="absolute bottom-0 w-[75%] z-0">
         <img
           src="/ui/bet_background.png"
@@ -66,7 +124,6 @@ export default function Home() {
         />
       </div>
 
-      {/* Top: board ~90vh */}
       <div className="absolute top-0 left-0 right-0 z-10 flex justify-center">
         <div style={{ height: "90vh", aspectRatio: "900/630" }}>
           <SlotBoard
@@ -78,7 +135,6 @@ export default function Home() {
         </div>
       </div>
 
-      {/* Bottom controls ~10vh (allowed to overlap the board) */}
       <div className="absolute bottom-0 left-0 right-0 z-20 h-[10vh] pointer-events-none">
         <div className="h-full flex items-end justify-center pointer-events-auto">
           <BetControls

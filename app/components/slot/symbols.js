@@ -1,7 +1,4 @@
-// app/components/slot/symbols.js
 export const IMG_BASE = "/symbols";
- 
-// Keep your existing filenames for preloading, etc.
 export const SYMBOLS = [
   "A.png",
   "K.png",
@@ -15,9 +12,7 @@ export const SYMBOLS = [
 ];
  
 const CLEARANCE_IMG = "level_clearance.png";
- 
-// Higher weight for smaller numbers (1 is most common)
-const CLEARANCE_WEIGHTS = [10, 9, 8, 7, 6, 5, 4, 3, 2, 1]; // for 1..10
+const CLEARANCE_WEIGHTS = [10, 9, 8, 7, 6, 5, 4, 3, 2, 1];
  
 function weightedPick(weights) {
   const total = weights.reduce((a, b) => a + b, 0);
@@ -30,14 +25,13 @@ function weightedPick(weights) {
 }
  
 export function rollClearanceValue() {
-  return weightedPick(CLEARANCE_WEIGHTS) + 1; // 1..10
+  return weightedPick(CLEARANCE_WEIGHTS) + 1;
 }
  
 export function isClearance(sym) {
   return sym && sym.img === CLEARANCE_IMG;
 }
  
-// Each cell is now an object: { img: "file.png", clearance?: number }
 export const makeRandomGrid = () =>
   Array.from({ length: 6 }, () =>
     Array.from({ length: 6 }, () => {

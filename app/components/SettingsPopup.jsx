@@ -9,7 +9,6 @@ export default function SettingsPopup({ onClose, totalBet, setTotalBet, onTotalB
   const [introScreen, setIntroScreen] = useState(true);
 
  const handleBetChange = (delta) => {
-   // Fallback for older callers; not used when onTotalBetStep is provided
    if (typeof onTotalBetStep === "function") {
      onTotalBetStep(delta > 0 ? +1 : -1);
    } else if (typeof setTotalBet === "function") {

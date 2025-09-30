@@ -31,7 +31,6 @@ export default function StaticGrid({ grid, dims, rows, cols, cycle }) {
                   sizes="100vw"
                 />
               ) : (
-                // Center the layered badge in the square cell
                 <div className="absolute inset-0 flex items-center justify-center">
                   <ClearanceBadge
                     digit={sym.clearance}

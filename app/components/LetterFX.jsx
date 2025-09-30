@@ -1,17 +1,6 @@
 "use client";
 import { useEffect, useRef, useState } from "react";
 
-/**
- * LetterFX (one-shot)
- * UNDER: fire_under_1..N + particle_1..5 (same size as letter) while letter arcs (better bob)
- * WAIT:  500ms pause (letter holds end pose; no movement)
- * FIRE:  fire-1..M (hyphen) while letter blinks out→in→out (ends hidden)
- *
- * Assets:
- *  /public/ui/fire/fire_under_1.png ... fire_under_7.png
- *  /public/ui/glowing_particles/particle_1.png ... particle_5.png
- *  /public/ui/fire/fire-1.png ... fire-8.png   // hyphen name
- */
 export default function LetterFX({
   letterSrc,
   size = "240px",
@@ -22,14 +11,13 @@ export default function LetterFX({
   fireFrameMs = 70,
   pauseMs = 500,
 }) {
-  const [phase, setPhase] = useState("idle");        // idle | under | wait | fire | done
-  const [underIdx, setUnderIdx] = useState(1);       // 1..underFrames
-  const [particleIdx, setParticleIdx] = useState(1); // 1..5
-  const [fireIdx, setFireIdx] = useState(1);         // 1..fireFrames
+  const [phase, setPhase] = useState("idle");
+  const [underIdx, setUnderIdx] = useState(1);
+  const [particleIdx, setParticleIdx] = useState(1);
+  const [fireIdx, setFireIdx] = useState(1);
   const timers = useRef({});
 
-  // === Durations ===
-  const underDurationMs = underFrames * underFrameMs;      // letter motion = UNDER time only
+  const underDurationMs = underFrames * underFrameMs;
   const fireDurationMs  = fireFrames * fireFrameMs;
 
   useEffect(() => {
@@ -39,24 +27,21 @@ export default function LetterFX({
     setParticleIdx(1);
     setFireIdx(1);
 
-    // Phase 1: UNDER (advance fire_under + particles once)
     let u = 1;
     timers.current.under = setInterval(() => {
       u += 1;
       if (u > underFrames) {
         clearInterval(timers.current.under);
         setPhase("wait");
-        timers.current.pause = setTimeout(() => startFire(), pauseMs); // 500ms wait
+        timers.current.pause = setTimeout(() => startFire(), pauseMs);
         return;
       }
       setUnderIdx(u);
-      // evenly map UNDER frames → 1..5 particle frames
       const p = Math.min(5, Math.floor(((u - 1) * 5) / Math.max(1, underFrames - 1)) + 1);
       setParticleIdx(p);
     }, underFrameMs);
 
     return cleanup;
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [playKey]);
 
   function startFire() {
@@ -80,13 +65,10 @@ export default function LetterFX({
     timers.current = {};
   }
 
-  const inner = "w-[72%] h-[72%] object-contain"; // same footprint for all layers
+  const inner = "w-[72%] h-[72%] object-contain";
 
   return (
     <div className="relative select-none" style={{ width: size, height: size }}>
-      {/* LETTER */}
-      {/* UNDER: improved arc motion exactly for UNDER duration; WAIT: holds pose; FIRE: blink 2x */}
-      {/* eslint-disable-next-line @next/next/no-img-element */}
       <img
         src={letterSrc}
         alt="letter"
@@ -107,15 +89,12 @@ export default function LetterFX({
         key={`letter-${playKey}-${phase}`}
       />
 
-      {/* UNDER visuals */}
       {phase === "under" && (
         <>
           <div className="absolute inset-0 grid place-items-center pointer-events-none z-20" key={`under-${playKey}`}>
-            {/* eslint-disable-next-line @next/next/no-img-element */}
             <img src={`/ui/fire/fire_under_${underIdx}.png`} alt="" className={inner} />
           </div>
           <div className="absolute inset-0 grid place-items-center pointer-events-none z-20" key={`particles-${playKey}`}>
-            {/* eslint-disable-next-line @next/next/no-img-element */}
             <img
               src={`/ui/glowing_particles/particle_${particleIdx}.png`}
               alt=""
@@ -126,15 +105,12 @@ export default function LetterFX({
         </>
       )}
 
-      {/* FIRE visuals */}
       {phase === "fire" && (
         <div className="absolute inset-0 grid place-items-center pointer-events-none z-20" key={`fire-${playKey}`}>
-          {/* eslint-disable-next-line @next/next/no-img-element */}
           <img src={`/ui/fire/fire-${fireIdx}.png`} alt="" className={inner} />
         </div>
       )}
 
-      {/* Keyframes */}
       <style jsx>{`
         /* === Improved arc-like rise + sway (more natural path) ===
            - quicker lift, slight right drift, then deeper left lean, then settle */

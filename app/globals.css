@@ -1,10 +1,9 @@
 @import "tailwindcss";
 
-/* ===== Theme Vars ===== */
 :root {
   --background: #ffffff;
   --foreground: #171717;
-  --clearance-num-color: #dc2626; /* red-600 */
+  --clearance-num-color: #dc2626;
 }
 
 @theme inline {
@@ -41,10 +40,22 @@ body {
   }
 }
 
+@keyframes weak-fade {
+  0%, 100% {
+    opacity: 0.6;
+  }
+  50% {
+    opacity: 1;
+  }
+}
+
+.weak-fade {
+  animation: weak-fade 2s ease-in-out infinite;
+}
+
 .animate-popupPulse {
   animation: popupPulse 0.25s ease-out forwards;
 }
-/* === Level Clearance (static layout) === */
 .fx-badge {
   position: relative;
   aspect-ratio: 209/189;
@@ -61,7 +72,6 @@ body {
   display: block;
 }
 
-/* Layer positions (your original) */
 .fx-badge .paper {
   width: 100%;
   left: 5%;
@@ -119,30 +129,27 @@ body {
   z-index: 6;
 }
 
-/* Glow (new layer) */
 .fx-badge .glow {
   width: 100%;
   left: 9%;
   top: 30%;
-  z-index: 4; /* above paper, below border */
+  z-index: 4;
   opacity: 0.95;
-  mix-blend-mode: screen; /* nice glow on paper */
+  mix-blend-mode: screen;
   pointer-events: none;
 }
 
-/* Stamps */
 .fx-badge .winMark,
 .fx-badge .printMark {
   width: 25%;
-  left: 67%; /* same position for both */
+  left: 67%;
   top: 10%;
-  z-index: 8; /* above digits/text */
+  z-index: 8;
   image-rendering: auto;
-  mix-blend-mode: multiply; /* ink feel */
+  mix-blend-mode: multiply;
   pointer-events: none;
 }
 
-/* Default: show WIN mark, hide PRINTER */
 .fx-badge .winMark {
   opacity: 1;
   transform: rotate(-96deg);
@@ -155,7 +162,6 @@ body {
   filter: drop-shadow(0 0 0 rgba(0, 0, 0, 0));
 }
 
-/* === Keyframes === */
 @keyframes fx-paper-jolt {
   0% {
     transform: translateY(0) rotate(0deg);
@@ -192,7 +198,7 @@ body {
     opacity: 0;
   }
 }
-/* WIN reveal bounce (ends visible at -96deg) */
+
 @keyframes fx-stamp-in {
   0% {
     opacity: 0;
@@ -210,7 +216,7 @@ body {
     filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.25));
   }
 }
-/* PRINTER: appear → stamp → remove itself */
+
 @keyframes fx-printer-stamp {
   0% {
     opacity: 0;
@@ -237,8 +243,6 @@ body {
   }
 }
 
-/* === Timeline (when .playing is added) === */
-/* Paper/glow motion */
 .fx-badge.playing .paper {
   animation: fx-paper-jolt 1020ms ease-out both;
 }
@@ -252,28 +256,22 @@ body {
   animation: fx-glow-boost 1020ms ease-out 60ms both;
 }
 
-/* 0–220ms: fade current WIN out.
-   260–520ms: bring WIN back with a bounce (and keep it shown). */
 .fx-badge.playing .winMark {
   animation: fx-win-fade 220ms ease-out 0ms forwards,
     fx-stamp-in 260ms cubic-bezier(0.2, 0.9, 0.2, 1.1) 560ms forwards;
 }
 
-/* 220–870ms: PRINTER appears, stamps, then removes itself. */
 .fx-badge.playing .printMark {
   animation: fx-printer-stamp 650ms cubic-bezier(0.2, 0.9, 0.2, 1) 220ms
     forwards;
 }
-/* === Digit decrement sequence (runs AFTER the stamp animation) === */
 .fx-badge .digitWrap {
   position: absolute;
   z-index: 7;
   overflow: visible;
-  /* left/top are set inline so we can reuse your exact slot */
   pointer-events: none;
 }
 
-/* two stacked digit groups: current (on top), next (under) */
 .fx-badge .digits-cur,
 .fx-badge .digits-next {
   position: absolute;
@@ -290,7 +288,6 @@ body {
   opacity: 0;
 }
 
-/* fire overlay that plays while digits swap */
 .fx-badge .fire {
   position: absolute;
   inset: -8% -8% -8% -8%;
@@ -300,7 +297,6 @@ body {
   pointer-events: none;
 }
 
-/* keyframes for digits + fire pop */
 @keyframes fx-digit-out {
   0% {
     opacity: 1;
@@ -336,7 +332,6 @@ body {
   }
 }
 
-/* when digit shift runs */
 .fx-badge.digit-shifting .digits-cur {
   animation: fx-digit-out 220ms ease-out forwards;
 }
@@ -351,7 +346,7 @@ body {
   width: 78%;
   left: 14%;
   top: 36%;
-  overflow: hidden; /* clip to the inner_border area */
+  overflow: hidden;
   z-index: 8;
   pointer-events: none;
 }
@@ -361,7 +356,6 @@ body {
   opacity: 0;
   mix-blend-mode: screen;
 }
-/* drive the fire animation during the digit shift */
 .fx-badge.digit-shifting .fireOverlay {
   animation: fx-fire-pop 1020ms ease-out forwards;
 }
@@ -371,19 +365,19 @@ body {
 }
 
 .custom-scroll::-webkit-scrollbar-track {
-  background: #222; /* тёмный фон */
+  background: #222;
   border-radius: 8px;
 }
 
 .custom-scroll::-webkit-scrollbar-thumb {
-  background-color: #facc15; /* Tailwind yellow-400 */
+  background-color: #facc15;
   border-radius: 8px;
   border: 2px solid #222;
 }
 
 .custom-scroll {
   scrollbar-width: thin;
-  scrollbar-color: #facc15 #222; /* Firefox */
+  scrollbar-color: #facc15 #222;
 }
 
 @keyframes pulse-bright {

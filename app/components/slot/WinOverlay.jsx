@@ -1,4 +1,3 @@
-// app/components/slot/WinOverlay.jsx
 "use client";
 
 export default function WinOverlay({ dims, marks }) {

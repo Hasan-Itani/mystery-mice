@@ -25,7 +25,6 @@ export default function PlayPieces({ pieces, setPieceRef }) {
         {!isClearance(p.sym) ? (
           <Image src={src} alt="" fill className="object-contain" sizes="100vw" priority />
         ) : (
-          // Use the layered badge for falling/animated pieces too
           <ClearanceBadge digit={p.sym.clearance} size="100%" />
         )}
       </div>

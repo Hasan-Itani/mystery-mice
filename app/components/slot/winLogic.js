@@ -1,14 +1,8 @@
-// app/components/slot/winLogic.js
-// Pure engine: detect wins (5+ orth-connected, with L as joker), resolve, gravity.
-
 import { SYMBOLS, rollClearanceValue } from "./symbols";
 
-// File name for the joker in your art set
 const CLEARANCE_IMG = "level_clearance.png";
-// All non-joker symbols (by filename)
 const BASE_IMGS = SYMBOLS.filter((img) => img !== CLEARANCE_IMG);
 
-// 4-dir adjacency
 const DIRS = [
   [1, 0],
   [-1, 0],
@@ -21,27 +15,18 @@ const isL = (cell) =>
   !!cell && (cell.img === CLEARANCE_IMG || cell === CLEARANCE_IMG);
 const cellImg = (cell) => (cell && cell.img) || cell || null;
 
-/** New cell for refills */
 export function randomFiller() {
   const img = SYMBOLS[Math.floor(Math.random() * SYMBOLS.length)];
   if (img === CLEARANCE_IMG) {
     const val =
       typeof rollClearanceValue === "function"
         ? rollClearanceValue()
-        : 7 + Math.floor(Math.random() * 4); // fallback: 7..10
+        : 7 + Math.floor(Math.random() * 4);
     return { img, clearance: val };
   }
   return { img };
 }
 
-/**
- * Find all wins for each base img symbol.
- * A win is a cluster (BFS) of size >= 5 consisting of (symbol OR L),
- * with at least one non-L cell of that symbol present.
- * Returns { wins, usedL }:
- *   wins: [{ img, cells: [[r,c]...], lCells: [[r,c]...] }, ...]
- *   usedL: Set("r,c") — each L that participated (decrement once per check)
- */
 export function findWins(grid) {
   const H = grid.length;
   const W = grid[0].length;
@@ -61,7 +46,6 @@ export function findWins(grid) {
           continue;
         }
 
-        // BFS over (imgSym OR L)
         const q = [[r, c]];
         seen[r][c] = true;
 
@@ -103,19 +87,11 @@ export function findWins(grid) {
   return { wins, usedL };
 }
 
-/**
- * Apply one resolve step:
- *  - Clear all winning non-L cells.
- *  - Decrement each used L by 1 (once total per check); remove if reaches 0.
- *  - Gravity per column.
- *  - Refill using `filler(x, y)`.
- */
 export function resolveWins(grid, wins, usedL, filler) {
   const H = grid.length;
   const W = grid[0].length;
   const next = cloneGrid(grid);
 
-  // Mark non-L winners
   const toClear = Array.from({ length: H }, () => Array(W).fill(false));
   for (const w of wins) {
     for (const [y, x] of w.cells) {
@@ -124,14 +100,12 @@ export function resolveWins(grid, wins, usedL, filler) {
     }
   }
 
-  // Clear marked
   for (let y = 0; y < H; y++) {
     for (let x = 0; x < W; x++) {
       if (toClear[y][x]) next[y][x] = null;
     }
   }
 
-  // Decrement each participating L by 1 total
   for (const key of usedL) {
     const [ys, xs] = key.split(",");
     const y = +ys,
@@ -145,7 +119,6 @@ export function resolveWins(grid, wins, usedL, filler) {
     }
   }
 
-  // Gravity per column, bottom compaction
   for (let x = 0; x < W; x++) {
     let write = H - 1;
     for (let y = H - 1; y >= 0; y--) {

@@ -1,4 +1,3 @@
-// app/components/SlotBoard.jsx
 "use client";
 import Image from "next/image";
 import {
@@ -41,7 +40,6 @@ import {
 import { findWins, resolveWins, randomFiller } from "./slot/winLogic";
 import { payoutTable } from "./slot/payoutTable";
 
-// --- calc payout (из версии друга)
 function calcWinAmount(wins, baseAmount = 1) {
   let total = 0;
   for (const win of wins) {
@@ -59,15 +57,13 @@ function calcWinAmount(wins, baseAmount = 1) {
   }
   return total;
 }
-
-// --- calc detailed breakdown per win cluster (symbol, count, multiplier, amount) ---
 function calcWinBreakdown(wins, baseAmount = 1) {
   const items = [];
   let total = 0;
 
   for (const win of wins) {
     const symbol = win.img;
-    const count = win.cells.length; // includes L’s — that’s intended for thresholds
+    const count = win.cells.length;
     const row = payoutTable[symbol];
     let multiplier = 0;
 
@@ -88,7 +84,6 @@ function calcWinBreakdown(wins, baseAmount = 1) {
 
 const SlotBoard = forwardRef(
   ({ onStateChange, onWin, totalBet, boardHeightVh = 90 }, ref) => {
-    // --- Layout metrics (design space -> responsive %) ---
     const metrics = useMemo(() => {
       const innerW = SIZE.w - INSET.left - INSET.right;
       const innerH = SIZE.h - INSET.top - INSET.bottom;
@@ -103,44 +98,37 @@ const SlotBoard = forwardRef(
         innerDesignH: innerH,
       };
     }, []);
-    const [floatPopups, setFloatPopups] = useState([]); // [{r,c,amount}]
+    const [floatPopups, setFloatPopups] = useState([]);
     const [floatKey, setFloatKey] = useState(0);
-    // --- Win pause / pending ---
-    const [winMarks, setWinMarks] = useState([]); // [{r,c}]
+    const [winMarks, setWinMarks] = useState([]);
     const [awaiting, setAwaiting] = useState(false);
     const pendingWinsRef = useRef(null);
     const pendingUsedLRef = useRef(null);
 
-    // --- Grid & anim state ---
     const [grid, setGrid] = useState(null);
-    const [phase, setPhase] = useState("idle"); // "idle" | "anim"
+    const [phase, setPhase] = useState("idle");
     const [cycle, setCycle] = useState(0);
-    const [autoResolve, setAutoResolve] = useState(true); // Auto (no Continue) vs Manual
+    const [autoResolve, setAutoResolve] = useState(true);
 
-    const [pieces, setPieces] = useState([]); // {id,sym,x,y,w,h}
+    const [pieces, setPieces] = useState([]);
     const pieceRefs = useRef(new Map());
     const setPieceRef = (id) => (el) => {
       if (el) pieceRefs.current.set(id, el);
       else pieceRefs.current.delete(id);
     };
 
-    // --- FX layer state ---
-    const [fxItems, setFxItems] = useState([]); // [{r,c,sym}]
+    const [fxItems, setFxItems] = useState([]);
     const [fxKey, setFxKey] = useState(0);
 
-    // --- Play area dims (px) ---
     const playRef = useRef(null);
     const dims = usePlayAreaDims(playRef, metrics.innerDesignW);
 
-    // --- Preload sprites ---
     useSpritesPreload();
 
-    // --- Initial grid ---
     useEffect(() => {
       setGrid(makeRandomGrid());
     }, []);
 
-    // --- Helpers to manage floating piece DOM nodes for spin animation ---
     const spawnPiece = ({ id, sym, col, topY }) => {
       const { cellW, cellH, gapPx } = dims;
       const x = Math.round(col * (cellW + gapPx));
@@ -173,7 +161,6 @@ const SlotBoard = forwardRef(
       const exitStagger = (cellH + gapPx) / exitSpeedPxPerMs;
       const enterStagger = (cellH + gapPx) / enterSpeedPxPerMs;
 
-      // EXIT existing
       await Promise.all(
         Array.from({ length: 6 }, (_, i) => 5 - i).map((r) => {
           const startTop = r * (cellH + gapPx);
@@ -189,7 +176,6 @@ const SlotBoard = forwardRef(
         })
       );
 
-      // ENTER new
       await Promise.all(
         Array.from({ length: 6 }, (_, k) => k).map((k) => {
           const targetRow = 5 - k;
@@ -215,7 +201,6 @@ const SlotBoard = forwardRef(
       );
     };
 
-    // --- Spin handler (exposed to parent) ---
     const tumbleAll = async (opts = {}) => {
       const speedScale = Math.max(
         0.25,
@@ -224,7 +209,6 @@ const SlotBoard = forwardRef(
 
       if (!grid || !dims || phase !== "idle") return;
 
-      // reset any paused state
       setAwaiting(false);
       setWinMarks([]);
       pendingWinsRef.current = null;
@@ -254,28 +238,32 @@ const SlotBoard = forwardRef(
     };
 
     useImperativeHandle(ref, () => ({ tumbleAll }));
-
-    // --- Detect wins (pause and wait) whenever a settled grid is visible ---
+    const firstInitRef = useRef(true);
     useEffect(() => {
-      if (!grid || phase !== "idle" || awaiting) return;
+    if (!grid || phase !== "idle" || awaiting) return;
 
-      const { wins, usedL } = findWins(grid);
+    if (firstInitRef.current) {
+      firstInitRef.current = false;
+      return;
+    }
 
-      if (!wins.length) {
-        setWinMarks([]);
-        pendingWinsRef.current = null;
-        pendingUsedLRef.current = null;
-        return;
-      }
-      onStateChange?.("resolving");
-      const marks = wins.flatMap((w) => w.cells.map(([r, c]) => ({ r, c })));
-      if (!autoResolve) setWinMarks(marks);
-      setAwaiting(true);
-      pendingWinsRef.current = wins;
-      pendingUsedLRef.current = usedL;
-    }, [grid, phase, awaiting, autoResolve]);
+    const { wins, usedL } = findWins(grid);
 
-    // --- Continue handler (plays FX, clears, gravity, refill, commit) ---
+    if (!wins.length) {
+      setWinMarks([]);
+      pendingWinsRef.current = null;
+      pendingUsedLRef.current = null;
+      return;
+    }
+
+    onStateChange?.("resolving");
+    const marks = wins.flatMap((w) => w.cells.map(([r, c]) => ({ r, c })));
+    if (!autoResolve) setWinMarks(marks);
+    setAwaiting(true);
+    pendingWinsRef.current = wins;
+    pendingUsedLRef.current = usedL;
+  }, [grid, phase, awaiting, autoResolve, onStateChange]);
+
     const handleContinue = useCallback(async () => {
       if (!awaiting || !pendingWinsRef.current) return;
       if (!dims || !grid) return;
@@ -285,14 +273,12 @@ const SlotBoard = forwardRef(
       setWinMarks([]);
       setPhase("anim");
 
-      // Snapshot current grid into movable pieces
       snapshotGridToPieces();
       await raf();
 
       const wins = pendingWinsRef.current;
       const usedL = pendingUsedLRef.current;
 
-      // payout (per cluster + total)
       try {
         const baseAmount = Number(totalBet ?? 0);
         const { items, total } = calcWinBreakdown(wins, baseAmount);
@@ -316,7 +302,6 @@ const SlotBoard = forwardRef(
           console.log("Step total:", `$${total.toFixed(2)}`);
           console.groupEnd();
         }
-        // Build “one popup per cluster” (top-left cell of each cluster)
         const popItems = wins
           .map((w, i) => {
             const amt = +(items[i]?.amount || 0);
@@ -330,19 +315,16 @@ const SlotBoard = forwardRef(
         if (popItems.length) {
           setFloatPopups(popItems);
           setFloatKey((k) => k + 1);
-          // clear them after the float animation finishes
           setTimeout(() => setFloatPopups([]), 1300);
         }
         onWin?.({ total, items });
       } catch (_) {
-        // Fallback if anything goes wrong calculating prints
         const baseAmount = Number(totalBet ?? 0);
         const payout = calcWinAmount(wins, baseAmount);
         console.log("Payout (total):", `$${payout.toFixed(2)}`);
         onWin?.({ total: payout, items: [] });
       }
 
-      // Cells to clear
       const toClearSet = new Set();
       for (const w of wins) {
         for (const [r, c] of w.cells) {
@@ -365,7 +347,6 @@ const SlotBoard = forwardRef(
 
       const idFor = (r, c) => `cell-${cycle}-${r}-${c}`;
 
-      // --- FX for supported symbols; fade for others
       const withFx = new Set([
         "A.png",
         "K.png",
@@ -409,7 +390,6 @@ const SlotBoard = forwardRef(
       ]);
       setFxItems([]);
 
-      // Remove faded pieces from floating layer
       if (toClearSet.size > 0) {
         setPieces((prev) =>
           prev.filter((p) => {
@@ -421,7 +401,6 @@ const SlotBoard = forwardRef(
         await raf();
       }
 
-      // Survivors (from old grid)
       const survivorsByCol = new Map();
       for (let c = 0; c < 6; c++) {
         const surv = [];
@@ -434,12 +413,10 @@ const SlotBoard = forwardRef(
         survivorsByCol.set(c, surv);
       }
 
-      // Resolve next logical grid
       const nextGrid = resolveWins(grid, wins, usedL, (x, y) =>
         randomFiller(x, y)
       );
 
-      // Animate survivors falling + spawn new
       const { cellH, gapPx } = dims;
       const enterSpeedPxPerMs = (cellH + gapPx) / ENTER_MS_PER_CELL;
 
@@ -491,7 +468,6 @@ const SlotBoard = forwardRef(
 
       await Promise.all(fallPromises);
 
-      // Commit new grid and clean up
       pendingWinsRef.current = null;
       pendingUsedLRef.current = null;
 
@@ -502,7 +478,6 @@ const SlotBoard = forwardRef(
       onStateChange?.("idle");
     }, [awaiting, grid, dims, cycle, totalBet, onWin, onStateChange]);
 
-    // --- Auto-continue when enabled ---
     useEffect(() => {
       if (!awaiting || !autoResolve || !dims || !grid) return;
       const t = setTimeout(() => {
@@ -511,7 +486,6 @@ const SlotBoard = forwardRef(
       return () => clearTimeout(t);
     }, [awaiting, autoResolve, dims, grid, handleContinue]);
 
-    // --- Keyboard shortcut while paused (only in Manual) ---
     useEffect(() => {
       if (!awaiting || autoResolve) return;
       const onKey = (e) => {
@@ -524,18 +498,18 @@ const SlotBoard = forwardRef(
       return () => window.removeEventListener("keydown", onKey);
     }, [awaiting, autoResolve, handleContinue]);
 
-    // --- Render ---
     return (
       <div className="w-full h-full flex items-start justify-center">
-        {/* Outer wrapper maintains aspect; width derives from height */}
         <div
-          className="relative"
-          style={{
-            aspectRatio: "900 / 630",
-            height: `${boardHeightVh}vh`,
-          }}
+          className="
+            relative
+            aspect-[900/630]
+            h-[65vh]        /* мобильный: 65% экрана */
+            sm:h-[75vh]     /* планшет */
+            md:h-[85vh]     /* ноут */
+            lg:h-[90vh]     /* десктоп */
+          "
         >
-          {/* Border */}
           <Image
             src="/ui/slot_border.png"
             alt="Slot Border"
@@ -559,14 +533,12 @@ const SlotBoard = forwardRef(
               className="object-contain"
               priority
             />
-            {/* Orange shine */}
             <Image
               src="/ui/orange_shine.png"
               alt="Orange Shine"
               fill
               className="object-contain animate-pulse-bright mt-12 pr-10 z-11"
             />
-            {/* Pink shine */}
             <Image
               src="/ui/pink_shine.png"
               alt="Pink Shine"
@@ -597,7 +569,6 @@ const SlotBoard = forwardRef(
               fill
               className="object-contain animate-pulse-bright mt-12 pl-10 z-11"
             />
-            {/* Pink shine */}
             <Image
               src="/ui/pink_shine.png"
               alt="Pink Shine"
@@ -626,17 +597,17 @@ const SlotBoard = forwardRef(
             absolute z-[-1] pointer-events-none
             w-[100px] h-[550px] left-[180px] top-[-305px]        /* mobile */
             sm:w-[90px] sm:h-[550px] sm:left-[300px] sm:top-[-305px] /* ipad */
-            lg:w-[300px] lg:h-[650px] lg:left-[850px] lg:top-[150px] /* desk */
+            lg:w-[300px] lg:h-[650px] lg:left-[910px] lg:top-[180px] /* desk */
           "
           >
             <Image
               src="/mouse.gif"
               alt="mouse"
               fill
-              className="object-contain gif-smooth"
+              className="object-contain gif-smooth z-1"
             />
           </div>
-          {/* Play area */}
+
           <div
             ref={playRef}
             className="absolute overflow-hidden"
@@ -647,7 +618,6 @@ const SlotBoard = forwardRef(
               left: metrics.insetPct.left,
             }}
           >
-            {/* Auto/Manual toggle */}
             <div className="absolute left-2 top-2 z-40">
               <button
                 onClick={() => setAutoResolve((v) => !v)}
@@ -669,7 +639,6 @@ const SlotBoard = forwardRef(
 
             <PlayPieces pieces={pieces} setPieceRef={setPieceRef} />
 
-            {/* Win FX overlay (plays during resolve) */}
             <WinFXLayer dims={dims} items={fxItems} playKey={fxKey} />
             <WinAmountPopups
               dims={dims}
@@ -677,12 +646,9 @@ const SlotBoard = forwardRef(
               playKey={floatKey}
             />
 
-            {/* Lines always visible */}
             <LinesOverlay dims={dims} />
-            {/* Yellow borders (marks) only in Manual mode */}
             {!autoResolve && <WinOverlay dims={dims} marks={winMarks} />}
 
-            {/* Manual Continue overlay (hidden in Auto mode) */}
             {awaiting && !autoResolve && (
               <div className="absolute inset-0 z-30 flex items-center justify-center pointer-events-none">
                 <button

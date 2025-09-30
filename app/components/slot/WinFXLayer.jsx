@@ -1,4 +1,3 @@
-// app/components/slot/WinFXLayer.jsx
 "use client";
 
 import { useEffect, useState } from "react";
@@ -7,30 +6,25 @@ import LetterFX from "../LetterFX";
 import CigaretteFX from "../CigaretteFX";
 import CapFX from "../CapFX";
 
-/* ===== Durations (ms) =====
-   All FX now start immediately at t=0.
-   SlotBoard waits for the longest FX based on durationForFx(). */
 const LETTER_UNDER_FRAMES = 7;
-const LETTER_UNDER_MS = LETTER_UNDER_FRAMES * 70; // 490
+const LETTER_UNDER_MS = LETTER_UNDER_FRAMES * 70;
 const LETTER_WAIT_MS = 500;
 
 const FIRE_FRAMES = 8;
 const FIRE_FRAME_MS = 70;
-const FIRE_TOTAL_MS = FIRE_FRAMES * FIRE_FRAME_MS; // 560
+const FIRE_TOTAL_MS = FIRE_FRAMES * FIRE_FRAME_MS;
 
 const CIG_UNDER_FRAMES = 3;
-const CIG_UNDER_MS = CIG_UNDER_FRAMES * 90; // 270
+const CIG_UNDER_MS = CIG_UNDER_FRAMES * 90;
 const CIG_WAIT_MS = 500;
 
-const LETTER_TOTAL_MS = LETTER_UNDER_MS + LETTER_WAIT_MS + FIRE_TOTAL_MS; // 1550
-const CIG_TOTAL_MS = CIG_UNDER_MS + CIG_WAIT_MS + FIRE_TOTAL_MS; // 1330
-const CLEAR_TOTAL_MS = FIRE_TOTAL_MS; // 560
-const CAP_TOTAL_MS = 1550; // match letters
+const LETTER_TOTAL_MS = LETTER_UNDER_MS + LETTER_WAIT_MS + FIRE_TOTAL_MS;
+const CIG_TOTAL_MS = CIG_UNDER_MS + CIG_WAIT_MS + FIRE_TOTAL_MS;
+const CLEAR_TOTAL_MS = FIRE_TOTAL_MS;
+const CAP_TOTAL_MS = 1550;
 
-// GIF symbols (start instantly, show for 2s)
-const GIF_TOTAL_MS = 2500; // police/mafia/detective
+const GIF_TOTAL_MS = 2500;
 
-/** Public duration (ms) used by SlotBoard to pause while FX plays */
 export function durationForFx(imgName) {
   if (imgName === "A.png" || imgName === "K.png" || imgName === "Q.png")
     return LETTER_TOTAL_MS;
@@ -38,12 +32,11 @@ export function durationForFx(imgName) {
   if (imgName === "level_clearance.png") return CLEAR_TOTAL_MS;
   if (imgName === "cap.png") return CAP_TOTAL_MS;
 
-  // New GIF-based mice
   if (imgName === "police_mice.png") return GIF_TOTAL_MS;
   if (imgName === "mafia_mice.png") return GIF_TOTAL_MS;
   if (imgName === "detective_mice.png") return GIF_TOTAL_MS;
 
-  return 300; // fallback pulse for any non-FX symbol
+  return 300;
 }
 
 function cellRect(dims, r, c) {
@@ -59,7 +52,6 @@ function cellRect(dims, r, c) {
 export default function WinFXLayer({ dims, items = [], playKey }) {
   if (!dims || !items.length) return null;
 
-  // All FX render immediately at t=0
   return (
     <div className="absolute inset-0 pointer-events-none z-40">
       {items.map(({ r, c, sym }, i) => {
@@ -144,7 +136,6 @@ export default function WinFXLayer({ dims, items = [], playKey }) {
                 frameMs={FIRE_FRAME_MS}
               />
             ) : (
-              // Fallback: small pulse so non-animated symbols still do something
               <div className="w-full h-full rounded-xl ring-4 ring-yellow-300/70 bg-yellow-200/10 animate-pulse" />
             )}
           </div>
@@ -154,14 +145,13 @@ export default function WinFXLayer({ dims, items = [], playKey }) {
   );
 }
 
-/** Simple 8-frame fire burst (clearance removal), starts immediately */
 function FireOnlyFX({
   size = "100%",
   playKey = 0,
   frames = FIRE_FRAMES,
   frameMs = FIRE_FRAME_MS,
 }) {
-  const [idx, setIdx] = useState(1); // start at 1 immediately
+  const [idx, setIdx] = useState(1);
 
   useEffect(() => {
     let i = 1;
@@ -183,7 +173,6 @@ function FireOnlyFX({
 
   return (
     <div className="relative select-none" style={{ width: size, height: size }}>
-      {/* eslint-disable-next-line @next/next/no-img-element */}
       <img
         src={`/ui/fire/fire-${idx}.png`}
         alt=""
@@ -193,8 +182,6 @@ function FireOnlyFX({
   );
 }
 
-/** Generic PNG→GIF overlay for mice symbols (police/mafia/detective).
- *  Starts immediately, shows PNG until GIF decodes (fade-in). */
 function SymbolGifFX({ size = "100%", playKey = 0, basePng, gifSrc }) {
   const [gifLoaded, setGifLoaded] = useState(false);
 
@@ -204,9 +191,7 @@ function SymbolGifFX({ size = "100%", playKey = 0, basePng, gifSrc }) {
 
   return (
     <div className="relative select-none" style={{ width: size, height: size }}>
-      {/* Show PNG instantly at t=0 so there’s never a blank gap */}
       {!gifLoaded && (
-        // eslint-disable-next-line @next/next/no-img-element
         <img
           src={basePng}
           alt=""
@@ -214,8 +199,6 @@ function SymbolGifFX({ size = "100%", playKey = 0, basePng, gifSrc }) {
         />
       )}
 
-      {/* GIF starts immediately; fades in when decoded */}
-      {/* eslint-disable-next-line @next/next/no-img-element */}
       <img
         src={`${gifSrc}?v=${playKey}`}
         alt=""

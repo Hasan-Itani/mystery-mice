@@ -1,7 +1,7 @@
 "use client";
 import { useEffect, useMemo, useRef, useState } from "react";
 import Image from "next/image";
-import { payoutTable } from "./slot/payoutTable"; // multipliers × TOTAL BET
+import { payoutTable } from "./slot/payoutTable";
 
 export default function GameRulesPopup({ onClose, totalBet = 0 }) {
   const [page, setPage] = useState(1);
@@ -40,7 +40,6 @@ export default function GameRulesPopup({ onClose, totalBet = 0 }) {
     };
   }, []);
 
-  // --- dynamic pay lines (× TOTAL BET) ---
   const fmt$ = (n) =>
     `$${(Number(n) || 0).toLocaleString(undefined, {
       minimumFractionDigits: 2,
@@ -62,7 +61,6 @@ export default function GameRulesPopup({ onClose, totalBet = 0 }) {
     const t = Number(totalBet) || 0;
     return SYMBOLS.map(({ key, name }) => {
       const row = payoutTable[key] || {};
-      // thresholds: 15,14,...,5 descending
       const thresholds = Object.keys(row)
         .map(Number)
         .sort((a, b) => b - a);
@@ -146,7 +144,6 @@ export default function GameRulesPopup({ onClose, totalBet = 0 }) {
               </>
             )}
 
-            {/* --- the rest of your pages unchanged --- */}
             {page === 2 && (
               <div className="text-gray-300 text-sm sm:text-base leading-relaxed space-y-4 text-left">
                 <h3 className="text-center font-bold text-lg text-yellow-400">

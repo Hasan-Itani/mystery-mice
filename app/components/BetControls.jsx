@@ -13,37 +13,30 @@ export default function BetControls({
   setTotalBet,
   canSpin = true,
   roundWin = 0,
-  // NEW: optional breakdown so center subline can show details
   lastWinItems = [],
 }) {
   const [isSpinning, setIsSpinning] = useState(false);
 
-  // единственный контроллер модалок
-  // modal: null | "settings" | "rules" | "bet"
   const [modal, setModal] = useState(null);
   const isPopupOpen = modal === "bet" || modal === "settings";
-  const [betAnchored, setBetAnchored] = useState(false); // где рисовать bet popup
+  const [betAnchored, setBetAnchored] = useState(false);
 
-  // для SettingsPopup (его внутренние контролы)
   const [totalBetSettings, setTotalBetSettings] = useState(2.0);
 
   const [bet, setBet] = useState(10);
   const [coinIndex, setCoinIndex] = useState(() => {
-    const i = COIN_VALUES.indexOf(1.2); // default to $1.20 if present
+    const i = COIN_VALUES.indexOf(1.2);
     return i >= 0 ? i : COIN_VALUES.length - 1;
   });
   const coinValue = COIN_VALUES[coinIndex];
   const totalBet = bet * coinValue * LINES;
 
-  // turbo по Space/Enter
   const turboHeldRef = useRef(false);
-
-  // пробрасываем TOTAL BET наверх
+ 
   useEffect(() => {
     if (typeof setTotalBet === "function") setTotalBet(totalBet);
   }, [totalBet, setTotalBet]);
 
-  // линейка TOTAL BET для +/- по общему знач.
   const allCombos = useMemo(() => {
     const arr = [];
     for (let c = 0; c < COIN_VALUES.length; c++) {
@@ -61,7 +54,6 @@ export default function BetControls({
     (c) => c.bet === bet && c.coinIndex === coinIndex
   );
 
-  // ресет локального "идёт спин", если извне можно крутить
   useEffect(() => {
     if (canSpin) {
       setIsSpinning(false);
@@ -69,11 +61,10 @@ export default function BetControls({
     }
   }, [canSpin]);
 
-  // --- SPIN handling (with spin sequence tracker) ---
   const spinSeqRef = useRef(0);
   const handleSpin = useCallback(
     async (options = {}) => {
-      if (modal) return; // block spin when bet/settings is open
+      if (modal) return;
       if (!canSpin || isSpinning) return;
       if (credit < totalBet) return;
       setIsSpinning(true);
@@ -88,7 +79,6 @@ export default function BetControls({
     [modal, canSpin, isSpinning, credit, totalBet, onSpin]
   );
 
-  // хоткеи
   useEffect(() => {
     const shouldIgnoreTarget = (el) => {
       if (!el) return false;
@@ -97,7 +87,7 @@ export default function BetControls({
     };
 
     const handleKeyDown = (event) => {
-      if (modal) return; // block hotkeys when any modal is open
+      if (modal) return;
       if (event.code !== "Space" && event.code !== "Enter") return;
       if (shouldIgnoreTarget(event.target)) return;
       event.preventDefault();
@@ -119,7 +109,6 @@ export default function BetControls({
     };
   }, [handleSpin]);
 
-  // блокируем скролл фона при любой модалке
   useEffect(() => {
     if (typeof document === "undefined") return;
     const el = document.documentElement;
@@ -133,7 +122,6 @@ export default function BetControls({
     setCoinIndex(COIN_VALUES.length - 1);
   };
 
-  // ===== Center banner logic (NEW) =====
   const START_TEXT = "HOLD SPACE FOR TURBO SPIN";
   const IDLE_VARIANTS = useMemo(
     () => ["PLACE YOUR BET!", "SPIN TO WIN!", "HOLD SPACE FOR TURBO SPIN"],
@@ -146,7 +134,6 @@ export default function BetControls({
   const animValRef = useRef(0);
   const lastSeenSpin = useRef(0);
 
-  // While spinning: show GOOD LUCK!
   useEffect(() => {
     if (isSpinning) {
       setBanner("GOOD LUCK!");
@@ -157,14 +144,9 @@ export default function BetControls({
     }
   }, [isSpinning]);
 
-  // After a spin finishes (canSpin true & a new spin was started)
-  // While spinning: still show GOOD LUCK! (kept as-is above)
-
-  // After spin / while idle: react to roundWin changes
   useEffect(() => {
     if (!canSpin || isSpinning) return;
 
-    // Win banner with animated amount
     if (roundWin > 0) {
       const target = Number(roundWin) || 0;
       const duration = Math.min(
@@ -182,7 +164,7 @@ export default function BetControls({
         setSubline("");
       }
 
-      const from = animValRef.current || 0; // start from what’s currently shown
+      const from = animValRef.current || 0;
       const to = target;
       const t0 = performance.now();
       cancelAnimationFrame(rafRef.current);
@@ -196,7 +178,6 @@ export default function BetControls({
       };
       rafRef.current = requestAnimationFrame(tick);
     } else {
-      // No win → show one of the idle lines
       const pick = [
         "PLACE YOUR BET!",
         "SPIN TO WIN!",
@@ -207,7 +188,6 @@ export default function BetControls({
     }
   }, [canSpin, isSpinning, roundWin, lastWinItems]);
 
-  // единый BET popup (якорный или фуллскрин)
   const BetPopup = ({ anchored = false }) => (
     <div
       className={
@@ -364,7 +344,6 @@ export default function BetControls({
     </div>
   );
 
-  // размеры UI
   const ICON_WH = "clamp(24px, 4.5vw, 36px)";
   const BIG_BTN_WH = "clamp(96px, 18vw, 160px)";
   const NUM_FONT = "clamp(16px, 3.5vw, 22px)";
@@ -376,11 +355,8 @@ export default function BetControls({
         className="mx-auto px-3 sm:px-4 md:px-6 py-2"
         style={{ width: `min(${vwWidth}vw, ${maxWidth}px)` }}
       >
-        {/* ===== Desktop ===== */}
         <div className="hidden md:grid grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-x-8 lg:gap-x-16 xl:gap-x-24">
-          {/* LEFT: settings over mute, info to the right, then CREDIT over BET */}
           <div className="flex items-start gap-4 mt-15">
-            {/* settings / mute vertical */}
             <div className="flex flex-col items-start gap-2">
               <button
                 className="relative"
@@ -410,7 +386,6 @@ export default function BetControls({
               </button>
             </div>
 
-            {/* info to their right */}
             <button
               className="relative mt-4"
               style={{
@@ -428,7 +403,6 @@ export default function BetControls({
               />
             </button>
 
-            {/* credit over bet */}
             <div className="flex flex-col gap-1 ml-2 mt-4">
               <div className="font-bold text-white leading-none">
                 CREDIT
@@ -456,7 +430,6 @@ export default function BetControls({
               </div>
             </div>
           </div>
-          {/* CENTER: banner + conditional subline */}
           <div className="flex flex-col items-center justify-center min-h-[48px] mt-14">
             <p
               className="text-white font-extrabold uppercase text-center leading-none whitespace-nowrap"
@@ -500,7 +473,6 @@ export default function BetControls({
               </div>
             )}
           </div>
-          {/* RIGHT: -  SPIN  + */}
           <div className="flex items-center gap-3 sm:gap-5 justify-end">
             <button
               onClick={() => {
@@ -544,7 +516,6 @@ export default function BetControls({
                 />
               </button>
 
-              {/* единственный anchored bet popup (desktop) */}
               {modal === "bet" && betAnchored && <BetPopup anchored />}
             </div>
 
@@ -568,7 +539,6 @@ export default function BetControls({
           </div>
         </div>
 
-        {/* ===== Mobile ===== */}
         <div className="md:hidden flex flex-col gap-3">
           <div className="flex items-center justify-between px-1">
             <div className="flex items-center gap-3">
@@ -618,7 +588,6 @@ export default function BetControls({
               </button>
             </div>
 
-            {/* mobile center banner */}
             <p
               className="text-white font-extrabold uppercase leading-none text-center whitespace-nowrap"
               style={{ fontSize: TIP_FONT }}
@@ -662,7 +631,6 @@ export default function BetControls({
             </div>
           )}
 
-          {/* credit/bet line under banner on mobile */}
           <div className="flex items-center justify-center gap-3">
             <div className="font-bold text-white">
               CREDIT
@@ -749,19 +717,15 @@ export default function BetControls({
             </button>
           </div>
 
-          {/* единственный mobile bet popup (fullscreen) */}
           {modal === "bet" && !betAnchored && <BetPopup anchored={false} />}
         </div>
 
-        {/* === единственные экземпляры модалок === */}
         {modal === "settings" && (
           <SettingsPopup
             key="settings-modal"
             onClose={() => setModal(null)}
-            // FIX: always send a number to avoid toFixed crash
-            totalBet={totalBet} // show the real current total bet
+            totalBet={totalBet}
             onTotalBetStep={(dir) => {
-              // step through allCombos
               const idx = currentIndex;
               if (dir < 0 && idx > 0) {
                 setBet(allCombos[idx - 1].bet);

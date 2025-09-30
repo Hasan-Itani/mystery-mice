@@ -1,30 +1,22 @@
 "use client";
 import { useEffect, useRef, useState } from "react";
 
-/**
- * CapFX (shake + particles → wait → fire-1..8 → end hidden)
- * Particles run only during SHAKE and stop at exactly shakeMs.
- * Sync rule with letters: shakeMs + pauseMs = 990ms (then fire).
- */
 export default function CapFX({
   symbolSrc,
   size = "240px",
   playKey = 0,
 
-  // particles
   particleFrames = 5,
   particleFrameMs = 70,
 
-  // timings (keep shakeMs + pauseMs === 990 to sync with others)
-  shakeMs = 10 * 70, // 490ms
-  pauseMs = 500, // 490 + 500 = 990 → then fire
+  shakeMs = 10 * 70,
+  pauseMs = 500,
   fireFrames = 8,
   fireFrameMs = 70,
 
-  // motion
   amplitudePct = 4,
 }) {
-  const [phase, setPhase] = useState("idle"); // idle | shake | wait | fire | done
+  const [phase, setPhase] = useState("idle");
   const [pFrame, setPFrame] = useState(1);
   const [fireFrame, setFireFrame] = useState(1);
   const timers = useRef({
@@ -41,12 +33,10 @@ export default function CapFX({
     setPFrame(1);
     setFireFrame(1);
 
-    // Particles loop ONLY during the shake stage
     timers.current.particleInterval = setInterval(() => {
       setPFrame((n) => (n >= particleFrames ? 1 : n + 1));
     }, particleFrameMs);
 
-    // At shake end: stop particles immediately and go to "wait"
     timers.current.toWait = setTimeout(() => {
       if (timers.current.particleInterval) {
         clearInterval(timers.current.particleInterval);
@@ -55,7 +45,6 @@ export default function CapFX({
       setPhase("wait");
     }, shakeMs);
 
-    // After wait: start fire
     timers.current.toFire = setTimeout(() => {
       setPhase("fire");
       let i = 1;
@@ -71,7 +60,6 @@ export default function CapFX({
       }, fireFrameMs);
     }, shakeMs + pauseMs);
 
-    // End hidden
     const total = shakeMs + pauseMs + fireFrames * fireFrameMs;
     timers.current.end = setTimeout(() => {
       setPhase("done");
@@ -107,13 +95,12 @@ export default function CapFX({
 
   const inner = "w-[72%] h-[72%] object-contain";
   const showSymbol = phase !== "done";
-  const showParticles = phase === "shake"; // ← only during SHAKE
+  const showParticles = phase === "shake";
   const showFire = phase === "fire";
 
   return (
     <div className="relative select-none" style={{ width: size, height: size }}>
       {showSymbol && (
-        // eslint-disable-next-line @next/next/no-img-element
         <img
           src={symbolSrc}
           alt="cap"
@@ -138,7 +125,6 @@ export default function CapFX({
 
       {showParticles && (
         <div className="absolute inset-0 grid place-items-center pointer-events-none z-20">
-          {/* eslint-disable-next-line @next/next/no-img-element */}
           <img
             src={`/ui/glowing_particles/particle_${pFrame}.png`}
             alt=""
@@ -151,7 +137,6 @@ export default function CapFX({
 
       {showFire && (
         <div className="absolute inset-0 grid place-items-center pointer-events-none z-30">
-          {/* eslint-disable-next-line @next/next/no-img-element */}
           <img
             src={`/ui/fire/fire-${fireFrame}.png`}
             alt=""

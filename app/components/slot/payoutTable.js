@@ -1,4 +1,3 @@
-// app/components/slot/payoutTable.js
 export const payoutTable = {
   "detective_mice.png": {
     15: 150,
